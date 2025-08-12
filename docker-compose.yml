@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres
+    container_name: rubberduck_pg
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    env_file:
+      - .env
+
+  redis:
+    image: redis/redis-stack:latest
+    container_name: rubberduck_redis
+    ports:
+      - '${REDIS_PORT}:6379'
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    environment:
+      - REDIS_PASSWORD= ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    env_file:
+      - .env
+
+volumes:
+  pgdata:
+  redisdata:
