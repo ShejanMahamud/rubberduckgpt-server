@@ -7,3 +7,31 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  username  String   @unique @db.VarChar(255)
+  profilePicture String?
+  role        String   @default("user")
+  isActive    Boolean  @default(true)
+  refreshToken String?
+  refreshTokenExpiresAt DateTime?
+  accessToken String?
+  accessTokenExpiresAt DateTime?
+  isDeleted   Boolean  @default(false)
+  isPremium   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+  @@index([email])
+  @@index([username])
+  @@index([role])
+}
