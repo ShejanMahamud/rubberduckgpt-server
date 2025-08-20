@@ -1,14 +1,20 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import Stripe from 'stripe';
 import { CreateCheckoutDto } from './dto/create-stripe.dto';
 
 @Injectable()
 export class StripeService {
+  webhookSecret: string;
+
   constructor(
     @Inject('STRIPE') private readonly stripe: Stripe,
     private readonly prisma: PrismaService,
-  ){}
+    private readonly configService: ConfigService,
+  ){
+    this.webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET') as string;
+  }
 
   async ensureCustomer(userId: string, email: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -22,7 +28,7 @@ export class StripeService {
 
   async createCheckoutSession(userId: string, email: string, dto: CreateCheckoutDto) {
     const customerId = await this.ensureCustomer(userId, email);
-    const priceId = dto.priceId || this.mapPlanToPriceId(dto.plan, dto.interval);
+    const priceId = dto.priceId;
 
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -40,16 +46,8 @@ export class StripeService {
     return { url: session.url };
   }
 
-  mapPlanToPriceId(plan: 'BASIC'|'PRO', interval: 'MONTHLY'|'YEARLY') {
-    const key = `${plan}_${interval}`;
-    const envKey = `STRIPE_PRICE_${key}`;
-    const priceId = process.env[envKey];
-    if (!priceId) throw new Error(`Missing env ${envKey}`);
-    return priceId;
-  }
-
-  async handleWebhook(sig: string | string[] | undefined, rawBody: Buffer) {
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+  async handleWebhook(sig: string | string[] | undefined, rawBody: Buffer | string) {
+    const endpointSecret = this.webhookSecret;
     const event = this.stripe.webhooks.constructEvent(rawBody, sig as string, endpointSecret);
 
     switch (event.type) {
