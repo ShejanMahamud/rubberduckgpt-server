@@ -7,3 +7,214 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  username  String   @unique @db.VarChar(255)
+  profilePicture String?
+  role        String   @default("user")
+  isActive    Boolean  @default(true)
+  refreshToken String?
+  refreshTokenExpiresAt DateTime?
+  accessToken String?
+  accessTokenExpiresAt DateTime?
+  isDeleted   Boolean  @default(false)
+  isPremium   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Chat relationships
+  chatSessions ChatSession[]
+
+  // Interview relationships
+  interviewSessions InterviewSession[]
+  interviewAnswers  InterviewAnswer[]
+
+  // Billing
+  stripeCustomerId String?
+  subscriptions    Subscription[]
+
+  @@map("users")
+  @@index([email])
+  @@index([username])
+  @@index([role])
+}
+
+// Billing enums
+enum Plan {
+  FREE
+  BASIC
+  PRO
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Subscription {
+  id                   String              @id @default(uuid())
+  userId               String
+  plan                 Plan
+  interval             BillingInterval
+  status               SubscriptionStatus  @default(INCOMPLETE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  stripePriceId        String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+  @@index([userId])
+  @@index([status])
+}
+
+model ChatSession {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String?  @db.VarChar(255)
+  model       String   @default("gemini-2.0-flash-exp")
+  temperature Float?   @default(0.7)
+  maxTokens   Int?     @default(4096)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    ChatMessage[]
+
+  @@map("chat_sessions")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id            String      @id @default(uuid())
+  sessionId     String
+  role          MessageRole
+  content       String      @db.Text
+  tokens        Int?
+  createdAt     DateTime    @default(now())
+
+  // Relationships
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// Interview enums
+enum InterviewCategory {
+  TECHNICAL
+  PROJECTS
+  BEHAVIORAL
+}
+
+enum InterviewStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AnswerSource {
+  TEXT
+  AUDIO
+}
+
+// Interview models
+model InterviewSession {
+  id          String           @id @default(uuid())
+  userId      String
+  resumeText  String?          @db.Text
+  resumeName  String?
+  resumeMime  String?
+  status      InterviewStatus  @default(PENDING)
+  totalScore  Float?
+  maxScore    Float?
+  questionCount Int?
+  startedAt   DateTime?
+  completedAt DateTime?
+  gradedAt    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions   InterviewQuestion[]
+  answers     InterviewAnswer[]
+
+  @@map("interview_sessions")
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model InterviewQuestion {
+  id         String            @id @default(uuid())
+  sessionId  String
+  category   InterviewCategory
+  text       String            @db.Text
+  order      Int               @default(0)
+  maxScore   Int               @default(10)
+
+  // Relations
+  session    InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answers    InterviewAnswer[]
+
+  @@map("interview_questions")
+  @@index([sessionId])
+  @@unique([sessionId, order])
+}
+
+model InterviewAnswer {
+  id          String            @id @default(uuid())
+  sessionId   String
+  questionId  String
+  userId      String
+  answerText  String            @db.Text
+  aiFeedback  String?
+  score       Float?
+  source      AnswerSource      @default(TEXT)
+  transcriptionMeta Json?
+  gradedAt    DateTime?
+  createdAt   DateTime          @default(now())
+
+  // Relations
+  session     InterviewSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question    InterviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("interview_answers")
+  @@index([sessionId])
+  @@index([questionId])
+  @@index([userId])
+  @@index([createdAt])
+  @@unique([sessionId, questionId, userId])
+}
