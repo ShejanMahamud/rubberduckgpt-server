@@ -1,20 +1,37 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Req, Res, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-user.dto';
+import { GoogleLoginDto } from './dto/create-auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
-  }
 
   @Get()
   findAll() {
     return this.authService.findAll();
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  public async googleAuth() {
+    // This method initiates Google OAuth flow
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @HttpCode(HttpStatus.OK)
+  public async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
+    const result = await this.authService.loginOrCreateUser(req?.user as GoogleLoginDto);
+    const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+    const url = new URL('/auth/callback', clientOrigin);
+    const accessToken = (result as any)?.data?.accessToken || '';
+    const refreshToken = (result as any)?.data?.refreshToken || '';
+    const fragment = new URLSearchParams({ accessToken, refreshToken }).toString();
+    url.hash = fragment; // tokens in URL fragment (not sent to server logs)
+    return res.redirect(url.toString());
   }
 
   @Get(':id')
@@ -22,10 +39,6 @@ export class AuthController {
     return this.authService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

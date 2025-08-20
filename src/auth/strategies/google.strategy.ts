@@ -25,14 +25,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: Profile,
     done: VerifyCallback,
   ): void {
-    const { name, emails, photos, provider } = profile;
+    const { name, emails, photos } = profile;
     //formatted user
     const user = {
       email: emails?.[0]?.value,
       username: this.generateSafeUsername(name?.givenName, name?.familyName),
       name: name?.givenName || name?.familyName || name?.middleName || 'User',
       profilePicture: photos?.[0]?.value,
-      provider,
     };
     //forward to callback
     done(null, user);

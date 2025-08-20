@@ -4,15 +4,37 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from 'generated/prisma';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils';
-import { CreateAuthDto } from './dto/create-auth.dto';
+import { GoogleLoginDto } from './dto/create-auth.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { IJwtPayload } from './types';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwtService: JwtService, private configService: ConfigService) {}
+  private readonly accessTokenSecret: string;
+  private readonly refreshTokenSecret: string;
+  private readonly accessTokenExpiresIn: string;
+  private readonly refreshTokenExpiresIn: string;
+  constructor(private prisma: PrismaService, private jwtService: JwtService, private configService: ConfigService) {
 
-  public async loginOrCreateUser(data: CreateAuthDto) {
+    //access token secret
+    this.accessTokenSecret = configService.get<string>(
+      'ACCESS_TOKEN_SECRET',
+    ) as string;
+    //refresh token secret
+    this.refreshTokenSecret = configService.get<string>(
+      'REFRESH_TOKEN_SECRET',
+    ) as string;
+    //access token expires
+    this.accessTokenExpiresIn = configService.get<string>(
+      'ACCESS_TOKEN_EXPIRES_IN',
+    ) as string;
+    //refresh token expires
+    this.refreshTokenExpiresIn = configService.get<string>(
+      'REFRESH_TOKEN_EXPIRES_IN',
+    ) as string;
+  }
+
+  public async loginOrCreateUser(data: GoogleLoginDto) {
     let user = await this.prisma.user.upsert({
       where: { email: data.email ,isActive: true,isDeleted: false},
       update: {},
@@ -82,12 +104,16 @@ export class AuthService {
       role: user.role,
     };
 
+    //access token
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '1d',
-    });
+      secret: this.accessTokenSecret,
+      expiresIn: this.accessTokenExpiresIn,
+    })
+    //refresh token
     const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
-    });
+      secret: this.refreshTokenSecret,
+      expiresIn: this.refreshTokenExpiresIn,
+    })
 
     return { accessToken, refreshToken };
   }

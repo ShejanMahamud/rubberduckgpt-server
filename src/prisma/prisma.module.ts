@@ -7,11 +7,4 @@ import { PrismaService } from './prisma.service';
   exports: [PrismaService],
 })
 export class PrismaModule {
-  constructor(private prisma: PrismaService) {}
-  onModuleInit() {
-    this.prisma.$connect();
-  }
-  onModuleDestroy() {
-    this.prisma.$disconnect();
-  }
 }

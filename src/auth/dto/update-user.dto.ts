@@ -1,9 +1,9 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { IsBoolean, IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
 import { Role } from 'generated/prisma';
-import { CreateAuthDto } from './create-auth.dto';
+import { GoogleLoginDto } from './create-auth.dto';
 
-export class UpdateUserDto extends PartialType(CreateAuthDto) {
+export class UpdateUserDto extends PartialType(GoogleLoginDto) {
     @IsEnum(Role)
     @IsOptional()
     role: Role;
