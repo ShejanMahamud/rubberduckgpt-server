@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCheckoutDto {
   @IsEnum(['BASIC', 'PRO'] as any)
@@ -7,11 +7,11 @@ export class CreateCheckoutDto {
   @IsEnum(['MONTHLY', 'YEARLY'] as any)
   interval: 'MONTHLY' | 'YEARLY';
 
-  @IsUrl()
+  @IsString()
   @IsNotEmpty()
   successUrl: string;
 
-  @IsUrl()
+  @IsString()
   @IsNotEmpty()
   cancelUrl: string;
 

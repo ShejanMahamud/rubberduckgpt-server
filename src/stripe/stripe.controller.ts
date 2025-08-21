@@ -31,4 +31,11 @@ export class StripeController {
     const user = (req as any).user || { sub: '' };
     return this.stripeService.getSubscriptionStatus(user.sub);
   }
+
+  @Post('refresh')
+  @UseGuards(JwtAuthGuard)
+  async refresh(@Req() req: Request) {
+    const user = (req as any).user || { sub: '' };
+    return this.stripeService.refreshSubscriptionStatus(user.sub);
+  }
 }

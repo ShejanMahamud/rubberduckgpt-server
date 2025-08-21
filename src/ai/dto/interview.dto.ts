@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { BaseResponseDto, QuestionContextDto } from './common.dto';
 
 export class SubmitAnswerDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
   questionId: string;
 
   @IsString()
@@ -11,8 +11,12 @@ export class SubmitAnswerDto {
 }
 
 export class SubmitAudioAnswerDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsUUID()
+  questionId: string;
+}
+
+export class TimeoutAnswerDto {
+  @IsUUID()
   questionId: string;
 }
 
@@ -34,5 +38,54 @@ export interface InterviewSummaryResponse {
   answered: number;
   totalQuestions: number;
 }
+
+// Enhanced DTOs
+export class StartInterviewResponseDto extends BaseResponseDto<{
+  sessionId: string;
+  totalQuestions: number;
+}> {}
+
+export class NextQuestionResponseDto extends BaseResponseDto<NextQuestionResponse | null> {}
+
+export class QuestionsWithStatusResponseDto extends BaseResponseDto<Array<{
+  id: string;
+  text: string;
+  category: InterviewCategoryType;
+  order: number;
+  maxScore: number;
+  answer?: {
+    id: string;
+    text: string;
+    score?: number;
+    feedback?: string;
+    submittedAt: string;
+  };
+}>> {}
+
+export class SubmitAnswerResponseDto extends BaseResponseDto<{
+  answerId: string;
+  questionId: string;
+  score?: number;
+  feedback?: string;
+}> {}
+
+export class TranscribeAudioResponseDto extends BaseResponseDto<{
+  transcription: string;
+  answerId: string;
+}> {}
+
+export class GradeInterviewResponseDto extends BaseResponseDto<{
+  totalScore: number;
+  maxScore: number;
+  averageScore: number;
+  feedback: string;
+}> {}
+
+export class InterviewSummaryResponseDto extends BaseResponseDto<InterviewSummaryResponse> {}
+
+export class TimeoutAnswerResponseDto extends BaseResponseDto<{
+  questionId: string;
+  markedAsTimeout: boolean;
+}> {}
 
 

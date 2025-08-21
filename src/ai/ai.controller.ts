@@ -20,8 +20,8 @@ import { Request } from "express";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { IJwtPayload } from "src/auth/types";
 import { AiService } from "./ai.service";
-import { CreateChatSessionDto, SendChatMessageDto } from "./dto/chat.dto";
-import { SubmitAnswerDto, SubmitAudioAnswerDto } from "./dto/interview.dto";
+import { CreateChatSessionDto, SendChatMessageDto, UpdateChatSessionDto } from "./dto/chat.dto";
+import { SubmitAnswerDto, SubmitAudioAnswerDto, TimeoutAnswerDto } from "./dto/interview.dto";
 
 @Controller("ai")
 @UseGuards(JwtAuthGuard)
@@ -40,13 +40,13 @@ export class AiController {
   async createChatSession(
     @Body() createSessionDto: CreateChatSessionDto,
     @Req() req: Request
-  ): Promise<any> {
+  ) {
     const userId = this.getUserId(req);
     return this.aiService.createChatSession(userId, createSessionDto);
   }
 
   @Get("chat-sessions")
-  async getChatSessions(@Req() req: Request): Promise<any> {
+  async getChatSessions(@Req() req: Request) {
     const userId = this.getUserId(req);
     return this.aiService.getChatSessions(userId);
   }
@@ -55,7 +55,7 @@ export class AiController {
   async getChatSession(
     @Param("sessionId") sessionId: string,
     @Req() req: Request
-  ): Promise<any> {
+  ) {
     const userId = this.getUserId(req);
     return this.aiService.getChatSession(sessionId, userId);
   }
@@ -65,14 +65,17 @@ export class AiController {
     @Param("sessionId") sessionId: string,
     @Body() body: SendChatMessageDto,
     @Req() req: Request
-  ): Promise<any> {
+  ) {
     const userId = this.getUserId(req);
-    return this.aiService.chatWithSession(sessionId, userId, body.message);
+    return this.aiService.chatWithSession(sessionId, userId, body.message, {
+      temperature: body.temperature,
+      maxTokens: body.maxTokens,
+    });
   }
 
   @Post("analyze")
   @UseInterceptors(FileInterceptor("file"))
-  async search(
+  async analyzeResume(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
@@ -136,7 +139,7 @@ export class AiController {
   @Post("interviews/:sessionId/timeout")
   async timeoutAnswer(
     @Param("sessionId") sessionId: string,
-    @Body() body: { questionId: string },
+    @Body() body: TimeoutAnswerDto,
     @Req() req: Request
   ) {
     const userId = this.getUserId(req);
@@ -186,9 +189,9 @@ export class AiController {
   @Patch("chat-sessions/:sessionId")
   async updateChatSession(
     @Param("sessionId") sessionId: string,
-    @Body() updateData: Partial<CreateChatSessionDto>,
+    @Body() updateData: UpdateChatSessionDto,
     @Req() req: Request
-  ): Promise<any> {
+  ) {
     const userId = this.getUserId(req);
     return this.aiService.updateChatSession(sessionId, userId, updateData);
   }
@@ -197,19 +200,8 @@ export class AiController {
   async deleteChatSession(
     @Param("sessionId") sessionId: string,
     @Req() req: Request
-  ): Promise<any> {
+  ) {
     const userId = this.getUserId(req);
     return this.aiService.deleteChatSession(sessionId, userId);
-  }
-
-  // Legacy endpoint for backward compatibility
-  @Post("chat")
-  public async chat(
-    @Body() body: { prompt: string },
-    @Req() req: Request
-  ): Promise<any> {
-    const userId = this.getUserId(req);
-    const session = await this.aiService.createChatSession(userId);
-    return this.aiService.chatWithSession(session.data.id, userId, body.prompt);
   }
 }
