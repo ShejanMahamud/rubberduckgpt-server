@@ -23,6 +23,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'refresh') {
 
   //validate and return the payload
   validate(payload: IJwtPayload): IJwtPayload {
+    console.log('Refresh token payload:', payload);
     return payload;
   }
 }

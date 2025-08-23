@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 
@@ -28,15 +37,13 @@ export class AdminController {
   @Put('plan-limits/:plan')
   async updatePlanLimit(
     @Param('plan') plan: PlanType,
-    @Body() body: PlanLimitBody
+    @Body() body: PlanLimitBody,
   ) {
     return this.adminService.updatePlanLimit(plan, body);
   }
 
   @Post('plan-limits')
-  async createPlanLimit(
-    @Body() body: CreatePlanLimitBody
-  ) {
+  async createPlanLimit(@Body() body: CreatePlanLimitBody) {
     return this.adminService.createPlanLimit(body);
   }
 

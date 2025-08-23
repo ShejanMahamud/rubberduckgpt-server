@@ -13,27 +13,13 @@ export interface IChatSession {
 export interface IChatMessage {
   id: string;
   sessionId: string;
-  role: "USER" | "ASSISTANT";
+  role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
   tokens?: number | null;
 }
 
 export interface IChatService {
-  createChatSession(
-    userId: string,
-    options?: {
-      title?: string;
-      temperature?: number;
-      maxTokens?: number;
-      model?: string;
-    }
-  ): Promise<{
-    success: boolean;
-    message: string;
-    data: IChatSession & { messages: IChatMessage[] };
-  }>;
-
   getChatSessions(userId: string): Promise<{
     success: boolean;
     message: string;
@@ -42,7 +28,7 @@ export interface IChatService {
 
   getChatSession(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -53,7 +39,6 @@ export interface IChatService {
     sessionId: string,
     userId: string,
     prompt: string,
-    options?: { temperature?: number; maxTokens?: number }
   ): Promise<{
     success: boolean;
     message: string;
@@ -67,7 +52,7 @@ export interface IChatService {
 
   deleteChatSession(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<{
     success: boolean;
     message: string;
@@ -82,7 +67,7 @@ export interface IChatService {
       temperature?: number;
       maxTokens?: number;
       model?: string;
-    }
+    },
   ): Promise<{
     success: boolean;
     message: string;

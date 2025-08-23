@@ -18,14 +18,20 @@ export class StripeService implements IStripeService {
     private readonly webhookProcessor: WebhookProcessorService,
     private readonly configService: ConfigService,
   ) {
-    this.webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET') as string;
+    this.webhookSecret = this.configService.get(
+      'STRIPE_WEBHOOK_SECRET',
+    ) as string;
   }
 
   async ensureCustomer(userId: string, email: string): Promise<string> {
     return this.customerService.ensureCustomer(userId, email, this.stripe);
   }
 
-  async createCheckoutSession(userId: string, email: string, dto: CreateCheckoutDto): Promise<{ url: string }> {
+  async createCheckoutSession(
+    userId: string,
+    email: string,
+    dto: CreateCheckoutDto,
+  ): Promise<{ url: string }> {
     const customerId = await this.ensureCustomer(userId, email);
     const priceId = dto.priceId;
 
@@ -53,9 +59,16 @@ export class StripeService implements IStripeService {
     return { url: session.url || '' };
   }
 
-  async handleWebhook(sig: string | string[] | undefined, rawBody: Buffer | string): Promise<{ received: boolean }> {
+  async handleWebhook(
+    sig: string | string[] | undefined,
+    rawBody: Buffer | string,
+  ): Promise<{ received: boolean }> {
     try {
-      const event = this.stripe.webhooks.constructEvent(rawBody, sig as string, this.webhookSecret);
+      const event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        sig as string,
+        this.webhookSecret,
+      );
       return await this.webhookProcessor.processEvent(event);
     } catch (error) {
       console.error('Webhook signature verification failed:', error);
@@ -65,7 +78,7 @@ export class StripeService implements IStripeService {
 
   async getSubscriptionStatus(userId: string): Promise<any> {
     const status = await this.subscriptionService.getSubscriptionStatus(userId);
-    
+
     return {
       success: true,
       message: 'Subscription status',
@@ -91,7 +104,10 @@ export class StripeService implements IStripeService {
         status: 'active',
       });
 
-      console.log('Found subscriptions from Stripe:', subscriptions.data.length);
+      console.log(
+        'Found subscriptions from Stripe:',
+        subscriptions.data.length,
+      );
 
       // Update our database with the latest Stripe data
       for (const subscription of subscriptions.data) {
@@ -110,12 +126,20 @@ export class StripeService implements IStripeService {
             stripeCustomerId: subscription.customer as string,
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscription.items.data[0]?.price?.id ?? null,
-            currentPeriodStart: (subscription as any).current_period_start ? new Date((subscription as any).current_period_start * 1000) : null,
-            currentPeriodEnd: (subscription as any).current_period_end ? new Date((subscription as any).current_period_end * 1000) : null,
+            currentPeriodStart: (subscription as any).current_period_start
+              ? new Date((subscription as any).current_period_start * 1000)
+              : null,
+            currentPeriodEnd: (subscription as any).current_period_end
+              ? new Date((subscription as any).current_period_end * 1000)
+              : null,
             cancelAt: null,
             canceledAt: null,
           });
-          console.log('Updated subscription in database:', { id: subscription.id, plan, interval });
+          console.log('Updated subscription in database:', {
+            id: subscription.id,
+            plan,
+            interval,
+          });
         }
       }
 

@@ -36,7 +36,7 @@ export class AiRateLimitService {
   async checkRateLimit(
     userId: string,
     operation: string,
-    customLimits?: Partial<RateLimitConfig>
+    customLimits?: Partial<RateLimitConfig>,
   ): Promise<RateLimitResult> {
     const limits = { ...this.defaultLimits, ...customLimits };
     const now = new Date();
@@ -44,19 +44,25 @@ export class AiRateLimitService {
 
     try {
       const result = this.checkCacheRateLimit(cacheKey, limits, now);
-      
+
       if (!result.allowed) {
-        this.logger.warn(`Rate limit exceeded for user ${userId} on operation ${operation}`, {
-          userId,
-          operation,
-          remaining: result.remaining,
-          resetTime: result.resetTime,
-        });
+        this.logger.warn(
+          `Rate limit exceeded for user ${userId} on operation ${operation}`,
+          {
+            userId,
+            operation,
+            remaining: result.remaining,
+            resetTime: result.resetTime,
+          },
+        );
       }
 
       return result;
     } catch (error) {
-      this.logger.error(`Error checking rate limit for user ${userId}`, { error: error.message, operation });
+      this.logger.error(`Error checking rate limit for user ${userId}`, {
+        error: error.message,
+        operation,
+      });
       // On error, allow the request but log the issue
       return {
         allowed: true,
@@ -69,10 +75,10 @@ export class AiRateLimitService {
   private checkCacheRateLimit(
     cacheKey: string,
     limits: RateLimitConfig,
-    now: Date
+    now: Date,
   ): RateLimitResult {
     const cached = this.rateLimitCache.get(cacheKey);
-    
+
     if (!cached || now >= cached.resetTime) {
       // Reset or create new cache entry
       this.rateLimitCache.set(cacheKey, {
@@ -83,7 +89,7 @@ export class AiRateLimitService {
         dailyCount: 1,
         dailyResetTime: new Date(now.getTime() + 86400000),
       });
-      
+
       return {
         allowed: true,
         remaining: limits.maxRequestsPerMinute - 1,
@@ -113,7 +119,9 @@ export class AiRateLimitService {
         allowed: false,
         remaining: 0,
         resetTime: cached.resetTime,
-        retryAfter: Math.ceil((cached.resetTime.getTime() - now.getTime()) / 1000),
+        retryAfter: Math.ceil(
+          (cached.resetTime.getTime() - now.getTime()) / 1000,
+        ),
       };
     }
 
@@ -122,7 +130,9 @@ export class AiRateLimitService {
         allowed: false,
         remaining: 0,
         resetTime: cached.hourlyResetTime,
-        retryAfter: Math.ceil((cached.hourlyResetTime.getTime() - now.getTime()) / 1000),
+        retryAfter: Math.ceil(
+          (cached.hourlyResetTime.getTime() - now.getTime()) / 1000,
+        ),
       };
     }
 
@@ -131,7 +141,9 @@ export class AiRateLimitService {
         allowed: false,
         remaining: 0,
         resetTime: cached.dailyResetTime,
-        retryAfter: Math.ceil((cached.dailyResetTime.getTime() - now.getTime()) / 1000),
+        retryAfter: Math.ceil(
+          (cached.dailyResetTime.getTime() - now.getTime()) / 1000,
+        ),
       };
     }
 
@@ -143,7 +155,7 @@ export class AiRateLimitService {
     const remaining = Math.min(
       limits.maxRequestsPerMinute - cached.count,
       limits.maxRequestsPerHour - cached.hourlyCount,
-      limits.maxRequestsPerDay - cached.dailyCount
+      limits.maxRequestsPerDay - cached.dailyCount,
     );
 
     return {
@@ -153,20 +165,32 @@ export class AiRateLimitService {
     };
   }
 
-  async logRequest(userId: string, operation: string, success: boolean = true): Promise<void> {
+  async logRequest(
+    userId: string,
+    operation: string,
+    success: boolean = true,
+  ): Promise<void> {
     // In-memory logging only
-    this.logger.debug(`AI request logged for user ${userId}`, { operation, success });
+    this.logger.debug(`AI request logged for user ${userId}`, {
+      operation,
+      success,
+    });
   }
 
-  async getRateLimitStatus(userId: string, operation: string): Promise<RateLimitResult> {
+  async getRateLimitStatus(
+    userId: string,
+    operation: string,
+  ): Promise<RateLimitResult> {
     return this.checkRateLimit(userId, operation);
   }
 
   async resetRateLimit(userId: string, operation: string): Promise<void> {
     const cacheKey = `${userId}:${operation}`;
     this.rateLimitCache.delete(cacheKey);
-    
-    this.logger.log(`Rate limit reset for user ${userId} on operation ${operation}`);
+
+    this.logger.log(
+      `Rate limit reset for user ${userId} on operation ${operation}`,
+    );
   }
 
   // Cleanup expired entries periodically

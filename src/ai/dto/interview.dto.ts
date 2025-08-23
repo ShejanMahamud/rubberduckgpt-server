@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsUUID, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { BaseResponseDto, QuestionContextDto } from './common.dto';
 
 export class SubmitAnswerDto {
@@ -47,20 +55,22 @@ export class StartInterviewResponseDto extends BaseResponseDto<{
 
 export class NextQuestionResponseDto extends BaseResponseDto<NextQuestionResponse | null> {}
 
-export class QuestionsWithStatusResponseDto extends BaseResponseDto<Array<{
-  id: string;
-  text: string;
-  category: InterviewCategoryType;
-  order: number;
-  maxScore: number;
-  answer?: {
+export class QuestionsWithStatusResponseDto extends BaseResponseDto<
+  Array<{
     id: string;
     text: string;
-    score?: number;
-    feedback?: string;
-    submittedAt: string;
-  };
-}>> {}
+    category: InterviewCategoryType;
+    order: number;
+    maxScore: number;
+    answer?: {
+      id: string;
+      text: string;
+      score?: number;
+      feedback?: string;
+      submittedAt: string;
+    };
+  }>
+> {}
 
 export class SubmitAnswerResponseDto extends BaseResponseDto<{
   answerId: string;
@@ -87,5 +97,3 @@ export class TimeoutAnswerResponseDto extends BaseResponseDto<{
   questionId: string;
   markedAsTimeout: boolean;
 }> {}
-
-

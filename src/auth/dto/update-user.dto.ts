@@ -1,39 +1,44 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsBoolean, IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsDate,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Role } from 'generated/prisma';
 import { GoogleLoginDto } from './create-auth.dto';
 
 export class UpdateUserDto extends PartialType(GoogleLoginDto) {
-    @IsEnum(Role)
-    @IsOptional()
-    role: Role;
+  @IsEnum(Role)
+  @IsOptional()
+  role: Role;
 
-    @IsBoolean()
-    @IsOptional()
-    isActive: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isActive: boolean;
 
-    @IsBoolean()
-    @IsOptional()
-    isDeleted: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isDeleted: boolean;
 
-    @IsBoolean()
-    @IsOptional()
-    isPremium: boolean;
+  @IsBoolean()
+  @IsOptional()
+  isPremium: boolean;
 
-    @IsString()
-    @IsOptional()
-    refreshToken: string
+  @IsString()
+  @IsOptional()
+  refreshToken: string;
 
-    @IsDate()
-    @IsOptional()
-    refreshTokenExpiresAt: Date
+  @IsDate()
+  @IsOptional()
+  refreshTokenExpiresAt: Date;
 
-    @IsString()
-    @IsOptional()
-    accessToken: string
+  @IsString()
+  @IsOptional()
+  accessToken: string;
 
-    @IsDate()
-    @IsOptional()
-    accessTokenExpiresAt: Date
+  @IsDate()
+  @IsOptional()
+  accessTokenExpiresAt: Date;
 }
-

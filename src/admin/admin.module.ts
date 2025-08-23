@@ -9,6 +9,6 @@ import { AdminService } from './admin.service';
   imports: [PrismaModule, StripeModule],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard],
-  exports: [AdminService, AdminGuard]
+  exports: [AdminService, AdminGuard],
 })
 export class AdminModule {}

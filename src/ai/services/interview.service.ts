@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as pdfParse from 'pdf-parse';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PROVIDER_TOKENS } from '../constants/provider-tokens';
@@ -13,12 +18,16 @@ export class InterviewService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(PROVIDER_TOKENS.GROQ_AI_PROVIDER) private readonly aiProvider: IAiProvider,
+    @Inject(PROVIDER_TOKENS.GROQ_AI_PROVIDER)
+    private readonly aiProvider: IAiProvider,
     private readonly planLimitsService: PlanLimitsService,
     private readonly gateway: InterviewGateway,
   ) {}
 
-  async startInterviewFromResume(file: Express.Multer.File, userId: string): Promise<{
+  async startInterviewFromResume(
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: { sessionId: string; totalQuestions: number };
@@ -66,33 +75,36 @@ export class InterviewService {
       message: 'Interview started',
       data: { sessionId: session.id, totalQuestions: questions.length },
     };
-    
+
     this.gateway.emitToSession(session.id, 'interview:started', result.data);
     return result;
   }
 
-  async getNextQuestion(sessionId: string, userId: string): Promise<{
+  async getNextQuestion(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: any;
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
+
     if (!session) throw new NotFoundException('Interview session not found');
-    
+
     if (session.status === 'COMPLETED') {
       return { success: true, message: 'Interview completed', data: null };
     }
 
     const [questions, answers] = await Promise.all([
-      this.prisma.interviewQuestion.findMany({ 
-        where: { sessionId }, 
-        orderBy: { order: 'asc' } 
+      this.prisma.interviewQuestion.findMany({
+        where: { sessionId },
+        orderBy: { order: 'asc' },
       }),
-      this.prisma.interviewAnswer.findMany({ 
-        where: { sessionId, userId } 
+      this.prisma.interviewAnswer.findMany({
+        where: { sessionId, userId },
       }),
     ]);
 
@@ -104,11 +116,11 @@ export class InterviewService {
       const totals = await this.computeScore(sessionId, userId);
       await this.prisma.interviewSession.update({
         where: { id: sessionId },
-        data: { 
-          status: 'COMPLETED', 
-          completedAt: new Date(), 
-          totalScore: totals.totalScore, 
-          maxScore: totals.maxScore 
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          totalScore: totals.totalScore,
+          maxScore: totals.maxScore,
         },
       });
       return { success: true, message: 'Interview completed', data: null };
@@ -126,49 +138,54 @@ export class InterviewService {
         remaining,
       },
     };
-    
+
     this.gateway.emitToSession(sessionId, 'question:next', result.data);
     return result;
   }
 
-  async submitAnswer(sessionId: string, userId: string, body: SubmitAnswerDto): Promise<{
+  async submitAnswer(
+    sessionId: string,
+    userId: string,
+    body: SubmitAnswerDto,
+  ): Promise<{
     success: boolean;
     message: string;
     data: { answerId: string };
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
-    if (!session) throw new NotFoundException('Interview session not found');
-    if (session.status === 'COMPLETED') throw new UnauthorizedException('Interview already completed');
 
-    const question = await this.prisma.interviewQuestion.findFirst({ 
-      where: { id: body.questionId, sessionId } 
+    if (!session) throw new NotFoundException('Interview session not found');
+    if (session.status === 'COMPLETED')
+      throw new UnauthorizedException('Interview already completed');
+
+    const question = await this.prisma.interviewQuestion.findFirst({
+      where: { id: body.questionId, sessionId },
     });
-    
+
     if (!question) throw new NotFoundException('Question not found');
 
     // Upsert answer (one per sessionId+questionId+userId)
     const answer = await this.storeAnswer(
-      sessionId, 
-      userId, 
-      question.id, 
-      body.answerText.trim(), 
-      'TEXT'
+      sessionId,
+      userId,
+      question.id,
+      body.answerText.trim(),
+      'TEXT',
     );
-    
+
     const res = {
       success: true,
       message: 'Answer submitted',
       data: { answerId: answer.id },
     };
-    
-    this.gateway.emitToSession(sessionId, 'answer:submitted', { 
-      questionId: question.id, 
-      answerId: res.data.answerId 
+
+    this.gateway.emitToSession(sessionId, 'answer:submitted', {
+      questionId: question.id,
+      answerId: res.data.answerId,
     });
-    
+
     return res;
   }
 
@@ -182,96 +199,122 @@ export class InterviewService {
     message: string;
     data: { answerId: string };
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
+
     if (!session) throw new NotFoundException('Interview session not found');
 
     // Transcribe via AI provider
     const text = await this.aiProvider.transcribeAudio(audio);
 
     // Store answer without grading, include transcription metadata
-    const question = await this.prisma.interviewQuestion.findFirst({ 
-      where: { id: questionId, sessionId } 
+    const question = await this.prisma.interviewQuestion.findFirst({
+      where: { id: questionId, sessionId },
     });
-    
+
     if (!question) throw new NotFoundException('Question not found');
-    
-    const answer = await this.storeAnswer(sessionId, userId, questionId, text, 'AUDIO');
-    
+
+    const answer = await this.storeAnswer(
+      sessionId,
+      userId,
+      questionId,
+      text,
+      'AUDIO',
+    );
+
     const res = {
       success: true,
       message: 'Answer submitted',
       data: { answerId: answer.id },
     };
-    
-    this.gateway.emitToSession(sessionId, 'answer:submitted', { 
-      questionId, 
-      answerId: res.data.answerId 
+
+    this.gateway.emitToSession(sessionId, 'answer:submitted', {
+      questionId,
+      answerId: res.data.answerId,
     });
-    
+
     return res;
   }
 
-  async gradeInterview(sessionId: string, userId: string): Promise<{
+  async gradeInterview(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
-    data: { results: Array<{ answerId: string; questionId: string; score: number; feedback: string }> };
+    data: {
+      results: Array<{
+        answerId: string;
+        questionId: string;
+        score: number;
+        feedback: string;
+      }>;
+    };
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
+
     if (!session) throw new NotFoundException('Interview session not found');
 
-    const questions = await this.prisma.interviewQuestion.findMany({ where: { sessionId } });
-    const answers = await this.prisma.interviewAnswer.findMany({ where: { sessionId, userId } });
+    const questions = await this.prisma.interviewQuestion.findMany({
+      where: { sessionId },
+    });
+    const answers = await this.prisma.interviewAnswer.findMany({
+      where: { sessionId, userId },
+    });
     const questionById = new Map(questions.map((q) => [q.id, q] as const));
 
-    const gradedResults: Array<{ answerId: string; questionId: string; score: number; feedback: string }> = [];
-    
+    const gradedResults: Array<{
+      answerId: string;
+      questionId: string;
+      score: number;
+      feedback: string;
+    }> = [];
+
     for (const answer of answers) {
       if (answer.answerText === this.TIMEOUT_MARKER) continue;
-      
+
       const question = questionById.get(answer.questionId);
       if (!question) continue;
-      
+
       const { score, feedback } = await this.aiProvider.gradeAnswer(
-        question.text, 
-        answer.answerText, 
-        question.maxScore
+        question.text,
+        answer.answerText,
+        question.maxScore,
       );
 
-      const updated = await this.prisma.interviewAnswer.update({ 
-        where: { id: answer.id }, 
-        data: { 
-          aiFeedback: feedback, 
-          score, 
-          gradedAt: new Date() 
-        } 
+      const updated = await this.prisma.interviewAnswer.update({
+        where: { id: answer.id },
+        data: {
+          aiFeedback: feedback,
+          score,
+          gradedAt: new Date(),
+        },
       });
-      
-      gradedResults.push({ 
-        answerId: updated.id, 
-        questionId: updated.questionId, 
-        score: updated.score ?? 0, 
-        feedback: updated.aiFeedback ?? '' 
+
+      gradedResults.push({
+        answerId: updated.id,
+        questionId: updated.questionId,
+        score: updated.score ?? 0,
+        feedback: updated.aiFeedback ?? '',
       });
     }
 
     // Update session totals if all questions are answered
-    const allAnswered = answers.length >= questions.length && questions.length > 0;
+    const allAnswered =
+      answers.length >= questions.length && questions.length > 0;
     if (allAnswered) {
       const totals = await this.computeScore(sessionId, userId);
       await this.prisma.interviewSession.update({
         where: { id: sessionId },
-        data: { 
-          status: 'COMPLETED', 
-          completedAt: new Date(), 
-          gradedAt: new Date(), 
-          totalScore: totals.totalScore, 
-          maxScore: totals.maxScore 
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          gradedAt: new Date(),
+          totalScore: totals.totalScore,
+          maxScore: totals.maxScore,
         },
       });
     }
@@ -281,7 +324,7 @@ export class InterviewService {
       message: 'Interview graded',
       data: { results: gradedResults },
     };
-    
+
     this.gateway.emitToSession(sessionId, 'interview:graded', out.data);
     return out;
   }
@@ -292,10 +335,10 @@ export class InterviewService {
     questionId: string,
   ): Promise<{ success: boolean }> {
     // Ensure question exists and belongs to session
-    const question = await this.prisma.interviewQuestion.findFirst({ 
-      where: { id: questionId, sessionId } 
+    const question = await this.prisma.interviewQuestion.findFirst({
+      where: { id: questionId, sessionId },
     });
-    
+
     if (!question) throw new NotFoundException('Question not found');
 
     await this.prisma.interviewAnswer.upsert({
@@ -322,15 +365,18 @@ export class InterviewService {
       },
     });
 
-    this.gateway.emitToSession(sessionId, 'answer:submitted', { 
-      questionId, 
-      timedOut: true 
+    this.gateway.emitToSession(sessionId, 'answer:submitted', {
+      questionId,
+      timedOut: true,
     });
-    
+
     return { success: true };
   }
 
-  async getQuestionsWithStatus(sessionId: string, userId: string): Promise<{
+  async getQuestionsWithStatus(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: Array<{
@@ -341,28 +387,28 @@ export class InterviewService {
       answered: boolean;
     }>;
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
+
     if (!session) throw new NotFoundException('Interview session not found');
 
     const [questions, answers] = await Promise.all([
-      this.prisma.interviewQuestion.findMany({ 
-        where: { sessionId }, 
-        orderBy: { order: 'asc' } 
+      this.prisma.interviewQuestion.findMany({
+        where: { sessionId },
+        orderBy: { order: 'asc' },
       }),
-      this.prisma.interviewAnswer.findMany({ 
-        where: { sessionId, userId } 
+      this.prisma.interviewAnswer.findMany({
+        where: { sessionId, userId },
       }),
     ]);
-    
+
     const answered = new Set(
       answers
         .filter((a) => a.answerText !== this.TIMEOUT_MARKER)
-        .map((a) => a.questionId)
+        .map((a) => a.questionId),
     );
-    
+
     const items = questions.map((q) => ({
       questionId: q.id,
       text: q.text,
@@ -370,7 +416,7 @@ export class InterviewService {
       order: q.order,
       answered: answered.has(q.id),
     }));
-    
+
     return {
       success: true,
       message: 'Questions with status',
@@ -378,7 +424,10 @@ export class InterviewService {
     };
   }
 
-  async getInterviewSummary(sessionId: string, userId: string): Promise<{
+  async getInterviewSummary(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: {
@@ -390,10 +439,10 @@ export class InterviewService {
       totalQuestions: number;
     };
   }> {
-    const session = await this.prisma.interviewSession.findFirst({ 
-      where: { id: sessionId, userId } 
+    const session = await this.prisma.interviewSession.findFirst({
+      where: { id: sessionId, userId },
     });
-    
+
     if (!session) throw new NotFoundException('Interview session not found');
 
     const [questionsCount, answers] = await Promise.all([
@@ -414,7 +463,7 @@ export class InterviewService {
         sessionId: session.id,
         status: session.status,
         totalScore: session.totalScore ?? totalScore,
-        maxScore: session.maxScore ?? (maxScore._sum.maxScore ?? 0),
+        maxScore: session.maxScore ?? maxScore._sum.maxScore ?? 0,
         answered: answers.length,
         totalQuestions: questionsCount,
       },
@@ -439,19 +488,22 @@ export class InterviewService {
     return {
       success: true,
       message: 'Questions generated successfully',
-      data: questions
+      data: questions,
     };
   }
 
-  private async computeScore(sessionId: string, userId: string): Promise<{ totalScore: number; maxScore: number }> {
+  private async computeScore(
+    sessionId: string,
+    userId: string,
+  ): Promise<{ totalScore: number; maxScore: number }> {
     const [answers, questions] = await Promise.all([
       this.prisma.interviewAnswer.findMany({ where: { sessionId, userId } }),
       this.prisma.interviewQuestion.findMany({ where: { sessionId } }),
     ]);
-    
+
     const totalScore = answers.reduce((sum, a) => sum + (a.score ?? 0), 0);
     const maxScore = questions.reduce((sum, q) => sum + q.maxScore, 0);
-    
+
     return { totalScore, maxScore };
   }
 
@@ -488,7 +540,7 @@ export class InterviewService {
         gradedAt: null,
       },
     });
-    
+
     return upserted;
   }
 }

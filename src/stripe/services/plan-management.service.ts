@@ -12,7 +12,10 @@ export interface IPlanLimit {
 
 export interface IPlanManagementService {
   getPlanLimits(): Promise<IPlanLimit[]>;
-  updatePlanLimit(plan: 'FREE' | 'BASIC' | 'PRO', data: Partial<IPlanLimit>): Promise<IPlanLimit>;
+  updatePlanLimit(
+    plan: 'FREE' | 'BASIC' | 'PRO',
+    data: Partial<IPlanLimit>,
+  ): Promise<IPlanLimit>;
   createPlanLimit(data: Omit<IPlanLimit, 'id'>): Promise<IPlanLimit>;
   deletePlanLimit(plan: 'FREE' | 'BASIC' | 'PRO'): Promise<IPlanLimit>;
   getPlanLimit(plan: 'FREE' | 'BASIC' | 'PRO'): Promise<IPlanLimit | null>;
@@ -24,28 +27,48 @@ export class PlanManagementService implements IPlanManagementService {
 
   async getPlanLimits(): Promise<IPlanLimit[]> {
     const limits = await this.prisma.planLimit.findMany({
-      orderBy: { plan: 'asc' }
+      orderBy: { plan: 'asc' },
     });
 
     return limits;
   }
 
-  async updatePlanLimit(plan: 'FREE' | 'BASIC' | 'PRO', data: Partial<IPlanLimit>): Promise<IPlanLimit> {
+  async updatePlanLimit(
+    plan: 'FREE' | 'BASIC' | 'PRO',
+    data: Partial<IPlanLimit>,
+  ): Promise<IPlanLimit> {
     // Validate plan name
     const validPlans = ['FREE', 'BASIC', 'PRO'] as const;
     if (!validPlans.includes(plan)) {
-      throw new BadRequestException('Invalid plan name. Must be FREE, BASIC, or PRO.');
+      throw new BadRequestException(
+        'Invalid plan name. Must be FREE, BASIC, or PRO.',
+      );
     }
 
     // Validate limits
-    if (data.maxInterviews !== undefined && (data.maxInterviews < -1 || data.maxInterviews < 0)) {
-      throw new BadRequestException('maxInterviews must be -1 (unlimited) or greater than 0.');
+    if (
+      data.maxInterviews !== undefined &&
+      (data.maxInterviews < -1 || data.maxInterviews < 0)
+    ) {
+      throw new BadRequestException(
+        'maxInterviews must be -1 (unlimited) or greater than 0.',
+      );
     }
-    if (data.maxChatMessages !== undefined && (data.maxChatMessages < -1 || data.maxChatMessages < 0)) {
-      throw new BadRequestException('maxChatMessages must be -1 (unlimited) or greater than 0.');
+    if (
+      data.maxChatMessages !== undefined &&
+      (data.maxChatMessages < -1 || data.maxChatMessages < 0)
+    ) {
+      throw new BadRequestException(
+        'maxChatMessages must be -1 (unlimited) or greater than 0.',
+      );
     }
-    if (data.maxResumeUploads !== undefined && (data.maxResumeUploads < -1 || data.maxResumeUploads < 0)) {
-      throw new BadRequestException('maxResumeUploads must be -1 (unlimited) or greater than 0.');
+    if (
+      data.maxResumeUploads !== undefined &&
+      (data.maxResumeUploads < -1 || data.maxResumeUploads < 0)
+    ) {
+      throw new BadRequestException(
+        'maxResumeUploads must be -1 (unlimited) or greater than 0.',
+      );
     }
 
     const updated = await this.prisma.planLimit.upsert({
@@ -57,7 +80,7 @@ export class PlanManagementService implements IPlanManagementService {
         maxChatMessages: data.maxChatMessages ?? 0,
         maxResumeUploads: data.maxResumeUploads ?? 0,
         isActive: data.isActive ?? true,
-      }
+      },
     });
 
     return updated;
@@ -67,16 +90,20 @@ export class PlanManagementService implements IPlanManagementService {
     // Validate plan name
     const validPlans = ['FREE', 'BASIC', 'PRO'] as const;
     if (!validPlans.includes(data.plan)) {
-      throw new BadRequestException('Invalid plan name. Must be FREE, BASIC, or PRO.');
+      throw new BadRequestException(
+        'Invalid plan name. Must be FREE, BASIC, or PRO.',
+      );
     }
 
     // Check if plan already exists
     const existing = await this.prisma.planLimit.findUnique({
-      where: { plan: data.plan }
+      where: { plan: data.plan },
     });
 
     if (existing) {
-      throw new BadRequestException('Plan limit already exists. Use PUT to update.');
+      throw new BadRequestException(
+        'Plan limit already exists. Use PUT to update.',
+      );
     }
 
     const created = await this.prisma.planLimit.create({
@@ -85,8 +112,8 @@ export class PlanManagementService implements IPlanManagementService {
         maxInterviews: data.maxInterviews,
         maxChatMessages: data.maxChatMessages,
         maxResumeUploads: data.maxResumeUploads,
-        isActive: data.isActive
-      }
+        isActive: data.isActive,
+      },
     });
 
     return created;
@@ -94,15 +121,17 @@ export class PlanManagementService implements IPlanManagementService {
 
   async deletePlanLimit(plan: 'FREE' | 'BASIC' | 'PRO'): Promise<IPlanLimit> {
     const deleted = await this.prisma.planLimit.delete({
-      where: { plan }
+      where: { plan },
     });
 
     return deleted;
   }
 
-  async getPlanLimit(plan: 'FREE' | 'BASIC' | 'PRO'): Promise<IPlanLimit | null> {
+  async getPlanLimit(
+    plan: 'FREE' | 'BASIC' | 'PRO',
+  ): Promise<IPlanLimit | null> {
     return this.prisma.planLimit.findUnique({
-      where: { plan }
+      where: { plan },
     });
   }
 }

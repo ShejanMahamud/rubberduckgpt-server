@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from '@nestjs/common';
 
 export interface AiProviderOptions {
   maxRetries?: number;
@@ -22,7 +22,7 @@ export abstract class BaseAiProvider {
   protected async executeWithRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
-    context: any = {}
+    context: any = {},
   ): Promise<T> {
     let lastError: Error | undefined;
 
@@ -30,7 +30,7 @@ export abstract class BaseAiProvider {
       try {
         this.logger.debug(
           `Attempting ${operationName} (attempt ${attempt}/${this.options.maxRetries})`,
-          context
+          context,
         );
 
         const result = await Promise.race([
@@ -41,7 +41,7 @@ export abstract class BaseAiProvider {
         if (attempt > 1) {
           this.logger.log(
             `${operationName} succeeded on attempt ${attempt}`,
-            context
+            context,
           );
         }
 
@@ -50,7 +50,7 @@ export abstract class BaseAiProvider {
         lastError = error as Error;
         this.logger.warn(
           `${operationName} failed on attempt ${attempt}/${this.options.maxRetries}: ${error.message}`,
-          { ...context, error: error.message, attempt }
+          { ...context, error: error.message, attempt },
         );
 
         if (attempt < this.options.maxRetries) {
@@ -65,11 +65,11 @@ export abstract class BaseAiProvider {
         ...context,
         error: lastError?.message,
         maxRetries: this.options.maxRetries,
-      }
+      },
     );
 
     throw new Error(
-      `${operationName} failed after ${this.options.maxRetries} attempts: ${lastError?.message}`
+      `${operationName} failed after ${this.options.maxRetries} attempts: ${lastError?.message}`,
     );
   }
 
@@ -77,7 +77,7 @@ export abstract class BaseAiProvider {
   protected async withRetry<T>(
     operation: () => Promise<T>,
     operationName: string,
-    context: any = {}
+    context: any = {},
   ): Promise<T> {
     return this.executeWithRetry(operation, operationName, context);
   }
@@ -86,7 +86,7 @@ export abstract class BaseAiProvider {
     return new Promise((_, reject) => {
       setTimeout(() => {
         reject(
-          new Error(`Operation timed out after ${this.options.timeout}ms`)
+          new Error(`Operation timed out after ${this.options.timeout}ms`),
         );
       }, this.options.timeout);
     });
@@ -107,7 +107,7 @@ export abstract class BaseAiProvider {
   protected logError(
     operation: string,
     error: Error,
-    context?: Record<string, any>
+    context?: Record<string, any>,
   ) {
     this.logger.error(`Failed ${operation}: ${error.message}`, {
       ...context,

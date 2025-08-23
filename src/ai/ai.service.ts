@@ -11,16 +11,6 @@ export class AiService {
     private readonly planLimitsService: PlanLimitsService,
   ) {}
 
-  // Chat operations - delegate to ChatService
-  public async createChatSession(userId: string, options?: {
-    title?: string;
-    temperature?: number;
-    maxTokens?: number;
-    model?: string;
-  }) {
-    return this.chatService.createChatSession(userId, options);
-  }
-
   public async getChatSessions(userId: string) {
     return this.chatService.getChatSessions(userId);
   }
@@ -30,12 +20,12 @@ export class AiService {
   }
 
   public async chatWithSession(
-    sessionId: string,
     userId: string,
     prompt: string,
-    options?: { temperature?: number; maxTokens?: number; }
+    sessionId?: string,
+    options?: { temperature?: number; maxTokens?: number },
   ) {
-    return this.chatService.chatWithSession(sessionId, userId, prompt, options);
+    return this.chatService.chatWithSession(userId, prompt, sessionId, options);
   }
 
   public async deleteChatSession(sessionId: string, userId: string) {
@@ -50,13 +40,16 @@ export class AiService {
       temperature?: number;
       maxTokens?: number;
       model?: string;
-    }
+    },
   ) {
     return this.chatService.updateChatSession(sessionId, userId, data);
   }
 
   // Interview operations - delegate to InterviewService
-  public async startInterviewFromResume(file: Express.Multer.File, userId: string) {
+  public async startInterviewFromResume(
+    file: Express.Multer.File,
+    userId: string,
+  ) {
     return this.interviewService.startInterviewFromResume(file, userId);
   }
 
@@ -78,7 +71,12 @@ export class AiService {
     questionId: string,
     audio: Express.Multer.File,
   ) {
-    return this.interviewService.transcribeAndStoreAnswer(sessionId, userId, questionId, audio);
+    return this.interviewService.transcribeAndStoreAnswer(
+      sessionId,
+      userId,
+      questionId,
+      audio,
+    );
   }
 
   public async gradeInterview(sessionId: string, userId: string) {

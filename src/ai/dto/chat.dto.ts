@@ -7,8 +7,8 @@ import {
   IsUUID,
   Max,
   Min,
-} from "class-validator";
-import { BaseResponseDto } from "./common.dto";
+} from 'class-validator';
+import { BaseResponseDto } from './common.dto';
 
 export class CreateChatSessionDto {
   @IsOptional()
@@ -33,6 +33,10 @@ export class CreateChatSessionDto {
 }
 
 export class SendChatMessageDto {
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
   @IsString()
   @IsNotEmpty()
   message: string;
@@ -77,7 +81,7 @@ export class ChatMessageDto {
   id: string;
 
   @IsString()
-  role: "USER" | "ASSISTANT";
+  role: 'USER' | 'ASSISTANT';
 
   @IsString()
   content: string;

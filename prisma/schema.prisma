@@ -115,6 +115,7 @@ model ChatSession {
   model       String   @default("gemini-2.0-flash-exp")
   temperature Float?   @default(0.7)
   maxTokens   Int?     @default(4096)
+  public      Boolean  @default(false)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

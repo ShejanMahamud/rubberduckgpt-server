@@ -40,8 +40,15 @@ export interface IStripeWebhookEvent {
 
 export interface IStripeService {
   ensureCustomer(userId: string, email: string): Promise<string>;
-  createCheckoutSession(userId: string, email: string, dto: any): Promise<{ url: string }>;
-  handleWebhook(sig: string | string[] | undefined, rawBody: Buffer | string): Promise<{ received: boolean }>;
+  createCheckoutSession(
+    userId: string,
+    email: string,
+    dto: any,
+  ): Promise<{ url: string }>;
+  handleWebhook(
+    sig: string | string[] | undefined,
+    rawBody: Buffer | string,
+  ): Promise<{ received: boolean }>;
   getSubscriptionStatus(userId: string): Promise<any>;
   refreshSubscriptionStatus(userId: string): Promise<any>;
 }

@@ -21,15 +21,15 @@ import { PlanManagementService } from './services/plan-management.service';
     WebhookHandlerService,
     WebhookProcessorService,
     PlanManagementService,
-    
+
     // External service providers
     {
       provide: 'STRIPE',
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        return new Stripe(config.get<string>("STRIPE_SK") as string);
-      }
-    }
+        return new Stripe(config.get<string>('STRIPE_SK') as string);
+      },
+    },
   ],
   exports: [StripeService, SubscriptionService, PlanManagementService],
 })

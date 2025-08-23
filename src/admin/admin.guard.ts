@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -15,11 +20,11 @@ export class AdminGuard implements CanActivate {
     }
 
     const token = authHeader.substring(7);
-    
+
     try {
       // Find user by access token
       const user = await this.prisma.user.findFirst({
-        where: { accessToken: token }
+        where: { accessToken: token },
       });
 
       if (!user) {
@@ -32,7 +37,7 @@ export class AdminGuard implements CanActivate {
 
       // Add user to request for use in controllers
       (request as any).user = user;
-      
+
       return true;
     } catch (error) {
       if (error instanceof UnauthorizedException) {

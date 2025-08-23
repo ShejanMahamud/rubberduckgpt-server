@@ -15,22 +15,28 @@ export class AdminService {
     return {
       success: true,
       message: 'Plan limits retrieved successfully',
-      data: limits
+      data: limits,
     };
   }
 
-  async updatePlanLimit(plan: 'FREE' | 'BASIC' | 'PRO', data: {
-    maxInterviews: number;
-    maxChatMessages: number;
-    maxResumeUploads: number;
-    isActive: boolean;
-  }) {
-    const updated = await this.planManagementService.updatePlanLimit(plan, data);
+  async updatePlanLimit(
+    plan: 'FREE' | 'BASIC' | 'PRO',
+    data: {
+      maxInterviews: number;
+      maxChatMessages: number;
+      maxResumeUploads: number;
+      isActive: boolean;
+    },
+  ) {
+    const updated = await this.planManagementService.updatePlanLimit(
+      plan,
+      data,
+    );
 
     return {
       success: true,
       message: 'Plan limit updated successfully',
-      data: updated
+      data: updated,
     };
   }
 
@@ -46,7 +52,7 @@ export class AdminService {
     return {
       success: true,
       message: 'Plan limit created successfully',
-      data: created
+      data: created,
     };
   }
 
@@ -56,7 +62,7 @@ export class AdminService {
     return {
       success: true,
       message: 'Plan limit deleted successfully',
-      data: deleted
+      data: deleted,
     };
   }
 
@@ -74,17 +80,17 @@ export class AdminService {
         _count: {
           select: {
             interviewSessions: true,
-            chatSessions: true
-          }
-        }
+            chatSessions: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return {
       success: true,
       message: 'Users retrieved successfully',
-      data: users
+      data: users,
     };
   }
 
@@ -94,13 +100,13 @@ export class AdminService {
       totalInterviews,
       totalChatSessions,
       totalMessages,
-      activeSubscriptions
+      activeSubscriptions,
     ] = await Promise.all([
       this.prisma.user.count({ where: { isDeleted: false } }),
       this.prisma.interviewSession.count(),
       this.prisma.chatSession.count(),
       this.prisma.chatMessage.count(),
-      this.prisma.subscription.count({ where: { status: 'ACTIVE' } })
+      this.prisma.subscription.count({ where: { status: 'ACTIVE' } }),
     ]);
 
     return {
@@ -111,8 +117,8 @@ export class AdminService {
         totalInterviews,
         totalChatSessions,
         totalMessages,
-        activeSubscriptions
-      }
+        activeSubscriptions,
+      },
     };
   }
 }

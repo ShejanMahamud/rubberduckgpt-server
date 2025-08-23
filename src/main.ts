@@ -14,12 +14,15 @@ async function bootstrap() {
   });
   // Stripe requires the raw body to validate webhooks
   app.use('/v1/api/stripe/webhook', raw({ type: '*/*' }));
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    transform: true,
-    forbidNonWhitelisted: true,
-  }))
-  app.setGlobalPrefix("v1/api")
+  //a logger
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+  app.setGlobalPrefix('v1/api');
   await app.listen(process.env.PORT ?? 4000);
 }
 bootstrap();

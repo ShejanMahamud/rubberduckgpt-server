@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { ISubscriptionData, ISubscriptionService, ISubscriptionStatus } from '../interfaces/subscription.interface';
+import {
+  ISubscriptionData,
+  ISubscriptionService,
+  ISubscriptionStatus,
+} from '../interfaces/subscription.interface';
 
 @Injectable()
 export class SubscriptionService implements ISubscriptionService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createSubscription(data: Omit<ISubscriptionData, 'id'>): Promise<ISubscriptionData> {
+  async createSubscription(
+    data: Omit<ISubscriptionData, 'id'>,
+  ): Promise<ISubscriptionData> {
     const subscription = await this.prisma.subscription.create({
       data: {
         userId: data.userId,
@@ -26,18 +32,29 @@ export class SubscriptionService implements ISubscriptionService {
     return subscription;
   }
 
-  async updateSubscription(id: string, data: Partial<ISubscriptionData>): Promise<ISubscriptionData> {
+  async updateSubscription(
+    id: string,
+    data: Partial<ISubscriptionData>,
+  ): Promise<ISubscriptionData> {
     const subscription = await this.prisma.subscription.update({
       where: { id },
       data: {
         ...(data.plan && { plan: data.plan }),
         ...(data.interval && { interval: data.interval }),
         ...(data.status && { status: data.status }),
-        ...(data.stripeCustomerId && { stripeCustomerId: data.stripeCustomerId }),
-        ...(data.stripeSubscriptionId && { stripeSubscriptionId: data.stripeSubscriptionId }),
+        ...(data.stripeCustomerId && {
+          stripeCustomerId: data.stripeCustomerId,
+        }),
+        ...(data.stripeSubscriptionId && {
+          stripeSubscriptionId: data.stripeSubscriptionId,
+        }),
         ...(data.stripePriceId && { stripePriceId: data.stripePriceId }),
-        ...(data.currentPeriodStart && { currentPeriodStart: data.currentPeriodStart }),
-        ...(data.currentPeriodEnd && { currentPeriodEnd: data.currentPeriodEnd }),
+        ...(data.currentPeriodStart && {
+          currentPeriodStart: data.currentPeriodStart,
+        }),
+        ...(data.currentPeriodEnd && {
+          currentPeriodEnd: data.currentPeriodEnd,
+        }),
         ...(data.cancelAt !== undefined && { cancelAt: data.cancelAt }),
         ...(data.canceledAt !== undefined && { canceledAt: data.canceledAt }),
       },
@@ -46,16 +63,15 @@ export class SubscriptionService implements ISubscriptionService {
     return subscription;
   }
 
-  async getActiveSubscription(userId: string): Promise<ISubscriptionData | null> {
+  async getActiveSubscription(
+    userId: string,
+  ): Promise<ISubscriptionData | null> {
     const now = new Date();
     return this.prisma.subscription.findFirst({
       where: {
         userId,
         status: 'ACTIVE',
-        OR: [
-          { currentPeriodEnd: null },
-          { currentPeriodEnd: { gt: now } },
-        ],
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
       },
     });
   }
@@ -72,17 +88,17 @@ export class SubscriptionService implements ISubscriptionService {
     if (sub) {
       plan = sub.plan as any;
       interval = sub.interval as any;
-      
+
       if (plan === 'PRO') {
         remaining = 'UNLIMITED';
       } else if (plan === 'BASIC') {
         const start = sub.currentPeriodStart ?? now;
         const end = sub.currentPeriodEnd ?? now;
-        used = await this.prisma.interviewSession.count({ 
-          where: { 
-            userId, 
-            createdAt: { gte: start, lte: end } 
-          } 
+        used = await this.prisma.interviewSession.count({
+          where: {
+            userId,
+            createdAt: { gte: start, lte: end },
+          },
         });
         remaining = Math.max(0, 10 - used);
       }
@@ -107,7 +123,9 @@ export class SubscriptionService implements ISubscriptionService {
     return this.getSubscriptionStatus(userId);
   }
 
-  async upsertSubscription(data: ISubscriptionData): Promise<ISubscriptionData> {
+  async upsertSubscription(
+    data: ISubscriptionData,
+  ): Promise<ISubscriptionData> {
     return this.prisma.subscription.upsert({
       where: { id: data.id },
       create: data,

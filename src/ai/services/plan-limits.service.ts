@@ -1,6 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { IPlanLimits, ISubscriptionInfo, ILimitEnforcement } from '../interfaces/plan-limits.interface';
+import {
+  IPlanLimits,
+  ISubscriptionInfo,
+  ILimitEnforcement,
+} from '../interfaces/plan-limits.interface';
 
 @Injectable()
 export class PlanLimitsService implements ILimitEnforcement {
@@ -9,7 +13,7 @@ export class PlanLimitsService implements ILimitEnforcement {
   async enforceInterviewLimit(userId: string): Promise<void> {
     const subscriptionInfo = await this.getSubscriptionInfo(userId);
     const planLimit = await this.getPlanLimit(subscriptionInfo.planType);
-    
+
     if (planLimit.maxInterviews === -1) return; // Unlimited
 
     if (subscriptionInfo.isActive && subscriptionInfo.planType !== 'FREE') {
@@ -17,15 +21,17 @@ export class PlanLimitsService implements ILimitEnforcement {
       const used = await this.getPeriodInterviewCount(userId, subscriptionInfo);
       if (used >= planLimit.maxInterviews) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxInterviews} interviews). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxInterviews} interviews). Upgrade to continue.`,
         );
       }
     } else {
       // FREE plan: check total lifetime limit
-      const total = await this.prisma.interviewSession.count({ where: { userId } });
+      const total = await this.prisma.interviewSession.count({
+        where: { userId },
+      });
       if (total >= planLimit.maxInterviews) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxInterviews} interviews). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxInterviews} interviews). Upgrade to continue.`,
         );
       }
     }
@@ -34,25 +40,28 @@ export class PlanLimitsService implements ILimitEnforcement {
   async enforceChatLimit(userId: string): Promise<void> {
     const subscriptionInfo = await this.getSubscriptionInfo(userId);
     const planLimit = await this.getPlanLimit(subscriptionInfo.planType);
-    
+
     if (planLimit.maxChatMessages === -1) return; // Unlimited
 
     if (subscriptionInfo.isActive && subscriptionInfo.planType !== 'FREE') {
       // Subscription plans: check billing period limits
-      const used = await this.getPeriodChatMessageCount(userId, subscriptionInfo);
+      const used = await this.getPeriodChatMessageCount(
+        userId,
+        subscriptionInfo,
+      );
       if (used >= planLimit.maxChatMessages) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxChatMessages} messages). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxChatMessages} messages). Upgrade to continue.`,
         );
       }
     } else {
       // FREE plan: check total lifetime limit
       const total = await this.prisma.chatMessage.count({
-        where: { session: { userId } }
+        where: { session: { userId } },
       });
       if (total >= planLimit.maxChatMessages) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxChatMessages} messages). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxChatMessages} messages). Upgrade to continue.`,
         );
       }
     }
@@ -61,43 +70,45 @@ export class PlanLimitsService implements ILimitEnforcement {
   async enforceResumeUploadLimit(userId: string): Promise<void> {
     const subscriptionInfo = await this.getSubscriptionInfo(userId);
     const planLimit = await this.getPlanLimit(subscriptionInfo.planType);
-    
+
     if (planLimit.maxResumeUploads === -1) return; // Unlimited
 
     if (subscriptionInfo.isActive && subscriptionInfo.planType !== 'FREE') {
       // Subscription plans: check billing period limits
-      const used = await this.getPeriodResumeUploadCount(userId, subscriptionInfo);
+      const used = await this.getPeriodResumeUploadCount(
+        userId,
+        subscriptionInfo,
+      );
       if (used >= planLimit.maxResumeUploads) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxResumeUploads} resume uploads). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan monthly limit reached (${planLimit.maxResumeUploads} resume uploads). Upgrade to continue.`,
         );
       }
     } else {
       // FREE plan: check total lifetime limit
       const total = await this.prisma.interviewSession.count({
-        where: { 
+        where: {
           userId,
-          resumeText: { not: null }
-        }
+          resumeText: { not: null },
+        },
       });
       if (total >= planLimit.maxResumeUploads) {
         throw new UnauthorizedException(
-          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxResumeUploads} resume uploads). Upgrade to continue.`
+          `${subscriptionInfo.planType} plan limit reached (${planLimit.maxResumeUploads} resume uploads). Upgrade to continue.`,
         );
       }
     }
   }
 
-  private async getSubscriptionInfo(userId: string): Promise<ISubscriptionInfo> {
+  private async getSubscriptionInfo(
+    userId: string,
+  ): Promise<ISubscriptionInfo> {
     const now = new Date();
     const activeSub = await this.prisma.subscription.findFirst({
       where: {
         userId,
         status: 'ACTIVE',
-        OR: [
-          { currentPeriodEnd: null },
-          { currentPeriodEnd: { gt: now } },
-        ],
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
       },
     });
 
@@ -109,13 +120,17 @@ export class PlanLimitsService implements ILimitEnforcement {
     };
   }
 
-  private async getPlanLimit(planType: 'FREE' | 'BASIC' | 'PRO'): Promise<IPlanLimits> {
+  private async getPlanLimit(
+    planType: 'FREE' | 'BASIC' | 'PRO',
+  ): Promise<IPlanLimits> {
     const planLimit = await this.prisma.planLimit.findFirst({
-      where: { plan: planType, isActive: true }
+      where: { plan: planType, isActive: true },
     });
 
     if (!planLimit) {
-      throw new UnauthorizedException('Plan limits not configured. Please contact support.');
+      throw new UnauthorizedException(
+        'Plan limits not configured. Please contact support.',
+      );
     }
 
     return {
@@ -125,11 +140,18 @@ export class PlanLimitsService implements ILimitEnforcement {
     };
   }
 
-  private async getPeriodInterviewCount(userId: string, subscriptionInfo: ISubscriptionInfo): Promise<number> {
+  private async getPeriodInterviewCount(
+    userId: string,
+    subscriptionInfo: ISubscriptionInfo,
+  ): Promise<number> {
     const now = new Date();
-    const periodStart = subscriptionInfo.currentPeriodStart ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const periodEnd = subscriptionInfo.currentPeriodEnd ?? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
+    const periodStart =
+      subscriptionInfo.currentPeriodStart ??
+      new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd =
+      subscriptionInfo.currentPeriodEnd ??
+      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
     return this.prisma.interviewSession.count({
       where: {
         userId,
@@ -138,11 +160,18 @@ export class PlanLimitsService implements ILimitEnforcement {
     });
   }
 
-  private async getPeriodChatMessageCount(userId: string, subscriptionInfo: ISubscriptionInfo): Promise<number> {
+  private async getPeriodChatMessageCount(
+    userId: string,
+    subscriptionInfo: ISubscriptionInfo,
+  ): Promise<number> {
     const now = new Date();
-    const periodStart = subscriptionInfo.currentPeriodStart ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const periodEnd = subscriptionInfo.currentPeriodEnd ?? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
+    const periodStart =
+      subscriptionInfo.currentPeriodStart ??
+      new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd =
+      subscriptionInfo.currentPeriodEnd ??
+      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
     return this.prisma.chatMessage.count({
       where: {
         session: { userId },
@@ -151,11 +180,18 @@ export class PlanLimitsService implements ILimitEnforcement {
     });
   }
 
-  private async getPeriodResumeUploadCount(userId: string, subscriptionInfo: ISubscriptionInfo): Promise<number> {
+  private async getPeriodResumeUploadCount(
+    userId: string,
+    subscriptionInfo: ISubscriptionInfo,
+  ): Promise<number> {
     const now = new Date();
-    const periodStart = subscriptionInfo.currentPeriodStart ?? new Date(now.getFullYear(), now.getMonth(), 1);
-    const periodEnd = subscriptionInfo.currentPeriodEnd ?? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    
+    const periodStart =
+      subscriptionInfo.currentPeriodStart ??
+      new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd =
+      subscriptionInfo.currentPeriodEnd ??
+      new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
     return this.prisma.interviewSession.count({
       where: {
         userId,

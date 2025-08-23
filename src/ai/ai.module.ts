@@ -30,32 +30,32 @@ import { PlanLimitsService } from './services/plan-limits.service';
     AiConfigService,
     AiErrorService,
     AiRateLimitService,
-    
+
     // AI Providers
     GroqAiProvider,
     GeminiChatProvider,
-    
+
     // Gateway
     InterviewGateway,
-    
+
     // External service providers
     {
       provide: PROVIDER_TOKENS.GEMINI,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         return new GoogleGenAI({
-          apiKey: config.get<string>("GEMINI_API_KEY") as string
+          apiKey: config.get<string>('GEMINI_API_KEY') as string,
         });
-      }
+      },
     },
     {
       provide: PROVIDER_TOKENS.GROQ,
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         return new Groq({
-          apiKey: config.get<string>("GROQ_API_KEY") as string
+          apiKey: config.get<string>('GROQ_API_KEY') as string,
         });
-      }
+      },
     },
     // Provider tokens
     {
@@ -65,7 +65,7 @@ import { PlanLimitsService } from './services/plan-limits.service';
     {
       provide: PROVIDER_TOKENS.GROQ_AI_PROVIDER,
       useExisting: GroqAiProvider,
-    }
+    },
   ],
   exports: [AiService],
 })

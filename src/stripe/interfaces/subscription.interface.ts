@@ -25,8 +25,13 @@ export interface ISubscriptionStatus {
 }
 
 export interface ISubscriptionService {
-  createSubscription(data: Omit<ISubscriptionData, 'id'>): Promise<ISubscriptionData>;
-  updateSubscription(id: string, data: Partial<ISubscriptionData>): Promise<ISubscriptionData>;
+  createSubscription(
+    data: Omit<ISubscriptionData, 'id'>,
+  ): Promise<ISubscriptionData>;
+  updateSubscription(
+    id: string,
+    data: Partial<ISubscriptionData>,
+  ): Promise<ISubscriptionData>;
   getActiveSubscription(userId: string): Promise<ISubscriptionData | null>;
   getSubscriptionStatus(userId: string): Promise<ISubscriptionStatus>;
   refreshFromStripe(userId: string): Promise<ISubscriptionStatus>;

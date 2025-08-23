@@ -36,27 +36,47 @@ export interface IInterviewSession {
 }
 
 export interface IInterviewService {
-  startInterviewFromResume(file: Express.Multer.File, userId: string): Promise<{
+  startInterviewFromResume(
+    file: Express.Multer.File,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: { sessionId: string; totalQuestions: number };
   }>;
-  
-  getNextQuestion(sessionId: string, userId: string): Promise<{
+
+  getNextQuestion(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
     data: any;
   }>;
-  
-  submitAnswer(sessionId: string, userId: string, body: any): Promise<{
+
+  submitAnswer(
+    sessionId: string,
+    userId: string,
+    body: any,
+  ): Promise<{
     success: boolean;
     message: string;
     data: { answerId: string };
   }>;
-  
-  gradeInterview(sessionId: string, userId: string): Promise<{
+
+  gradeInterview(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     success: boolean;
     message: string;
-    data: { results: Array<{ answerId: string; questionId: string; score: number; feedback: string }> };
+    data: {
+      results: Array<{
+        answerId: string;
+        questionId: string;
+        score: number;
+        feedback: string;
+      }>;
+    };
   }>;
 }

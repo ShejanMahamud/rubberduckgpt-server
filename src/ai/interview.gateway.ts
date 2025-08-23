@@ -11,8 +11,13 @@ import {
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from 'src/prisma/prisma.service';
 
-@WebSocketGateway({ namespace: 'interview', cors: { origin: '*', credentials: true } })
-export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnect {
+@WebSocketGateway({
+  namespace: 'interview',
+  cors: { origin: '*', credentials: true },
+})
+export class InterviewGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   public server: Server;
 
@@ -22,14 +27,20 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
   ) {}
 
   async handleConnection(client: Socket) {
-    const token = (client.handshake.auth as any)?.token || client.handshake.headers['authorization']?.toString().replace(/^Bearer\s+/i, '');
+    const token =
+      (client.handshake.auth as any)?.token ||
+      client.handshake.headers['authorization']
+        ?.toString()
+        .replace(/^Bearer\s+/i, '');
     if (!token) {
       client.emit('error', { message: 'Unauthorized: missing token' });
       return client.disconnect();
     }
     try {
-      const payload = await this.jwt.verifyAsync(token, { secret: process.env.ACCESS_TOKEN_SECRET as string });
-      (client.data as any).userId = payload.sub;
+      const payload = await this.jwt.verifyAsync(token, {
+        secret: process.env.ACCESS_TOKEN_SECRET as string,
+      });
+      client.data.userId = payload.sub;
     } catch {
       client.emit('error', { message: 'Unauthorized: invalid token' });
       return client.disconnect();
@@ -37,13 +48,21 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   @SubscribeMessage('joinSession')
-  async handleJoin(@ConnectedSocket() client: Socket, @MessageBody() data: { sessionId: string }) {
+  async handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { sessionId: string },
+  ) {
     if (!data?.sessionId) return;
-    const userId = (client.data as any).userId as string | undefined;
+    const userId = client.data.userId as string | undefined;
     if (!userId) return client.emit('error', { message: 'Unauthorized' });
 
-    const owns = await this.prisma.interviewSession.findFirst({ where: { id: data.sessionId, userId } });
-    if (!owns) return client.emit('error', { message: 'Forbidden: session not found/owned' });
+    const owns = await this.prisma.interviewSession.findFirst({
+      where: { id: data.sessionId, userId },
+    });
+    if (!owns)
+      return client.emit('error', {
+        message: 'Forbidden: session not found/owned',
+      });
 
     client.join(data.sessionId);
     client.emit('joined', { sessionId: data.sessionId });
@@ -62,21 +81,36 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   // WebRTC signaling relay
   @SubscribeMessage('rtc:offer')
-  async relayOffer(@ConnectedSocket() client: Socket, @MessageBody() data: { sessionId: string; offer: any }) {
+  async relayOffer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { sessionId: string; offer: any },
+  ) {
     if (!data?.sessionId || !data?.offer) return;
-    client.to(data.sessionId).emit('rtc:offer', { from: client.id, offer: data.offer });
+    client
+      .to(data.sessionId)
+      .emit('rtc:offer', { from: client.id, offer: data.offer });
   }
 
   @SubscribeMessage('rtc:answer')
-  async relayAnswer(@ConnectedSocket() client: Socket, @MessageBody() data: { sessionId: string; answer: any }) {
+  async relayAnswer(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { sessionId: string; answer: any },
+  ) {
     if (!data?.sessionId || !data?.answer) return;
-    client.to(data.sessionId).emit('rtc:answer', { from: client.id, answer: data.answer });
+    client
+      .to(data.sessionId)
+      .emit('rtc:answer', { from: client.id, answer: data.answer });
   }
 
   @SubscribeMessage('rtc:candidate')
-  async relayCandidate(@ConnectedSocket() client: Socket, @MessageBody() data: { sessionId: string; candidate: any }) {
+  async relayCandidate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { sessionId: string; candidate: any },
+  ) {
     if (!data?.sessionId || !data?.candidate) return;
-    client.to(data.sessionId).emit('rtc:candidate', { from: client.id, candidate: data.candidate });
+    client
+      .to(data.sessionId)
+      .emit('rtc:candidate', { from: client.id, candidate: data.candidate });
   }
 
   handleDisconnect(client: Socket) {
@@ -87,5 +121,3 @@ export class InterviewGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
   }
 }
-
-

@@ -4,9 +4,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from "@nestjs/common";
-import { PrismaService } from "src/prisma/prisma.service";
-import { PROVIDER_TOKENS } from "../constants/provider-tokens";
+} from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { PROVIDER_TOKENS } from '../constants/provider-tokens';
 import {
   ChatMessageDto,
   ChatSessionDto,
@@ -14,17 +14,20 @@ import {
   ChatSessionWithMessagesDto,
   ChatWithSessionResponseDto,
   CreateChatSessionDto,
-  CreateChatSessionResponseDto,
   DeleteChatSessionResponseDto,
   GetChatSessionResponseDto,
   GetChatSessionsResponseDto,
   UpdateChatSessionDto,
   UpdateChatSessionResponseDto,
-} from "../dto/chat.dto";
-import { IChatProvider } from "../interfaces/ai-provider.interface";
-import { IChatService } from "../interfaces/chat.interface";
-import { AiConfigService } from "./ai-config.service";
-import { PlanLimitsService } from "./plan-limits.service";
+} from '../dto/chat.dto';
+import { IChatProvider } from '../interfaces/ai-provider.interface';
+import { IChatService } from '../interfaces/chat.interface';
+import {
+  ChatMessageWithSession,
+  ChatSessionWithMessages,
+} from '../types/chat.types';
+import { AiConfigService } from './ai-config.service';
+import { PlanLimitsService } from './plan-limits.service';
 
 @Injectable()
 export class ChatService implements IChatService {
@@ -35,21 +38,23 @@ export class ChatService implements IChatService {
     @Inject(PROVIDER_TOKENS.GEMINI_CHAT_PROVIDER)
     private readonly chatProvider: IChatProvider,
     private readonly planLimitsService: PlanLimitsService,
-    private readonly configService: AiConfigService
+    private readonly configService: AiConfigService,
   ) {}
 
-  private mapToChatMessageDto(message: any): ChatMessageDto {
+  private mapToChatMessageDto(message: ChatMessageWithSession): ChatMessageDto {
     return {
       id: message.id,
       role: message.role,
       content: message.content,
       createdAt: message.createdAt.toISOString(),
       sessionId: message.sessionId,
-      tokens: message.tokens,
+      tokens: message.tokens ?? undefined,
     };
   }
 
-  private mapToChatSessionDto(session: any): ChatSessionDto {
+  private mapToChatSessionDto(
+    session: ChatSessionWithMessages,
+  ): ChatSessionDto {
     return {
       id: session.id,
       userId: session.userId,
@@ -64,61 +69,55 @@ export class ChatService implements IChatService {
   }
 
   private mapToChatSessionWithMessagesDto(
-    session: any
+    session: ChatSessionWithMessages,
   ): ChatSessionWithMessagesDto {
     return {
       ...this.mapToChatSessionDto(session),
-      messages: session.messages?.map(this.mapToChatMessageDto) || [],
+      messages:
+        session.messages?.map((msg) => this.mapToChatMessageDto(msg)) || [],
     };
   }
 
-  private mapToChatSessionWithCountDto(session: any): ChatSessionWithCountDto {
+  private mapToChatSessionWithCountDto(
+    session: ChatSessionWithMessages,
+  ): ChatSessionWithCountDto {
     return {
       ...this.mapToChatSessionDto(session),
       _count: session._count || { messages: 0 },
     };
   }
 
-  async createChatSession(
+  public async getOrCreateChatSession(
     userId: string,
-    options?: CreateChatSessionDto
-  ): Promise<CreateChatSessionResponseDto> {
-    this.logger.log(`Creating chat session for user ${userId}`, { options });
+    prompt: string,
+    sessionId?: string,
+    options?: CreateChatSessionDto,
+  ): Promise<ChatSessionWithMessages> {
+    // Enforce chat limits before creating/fetching session
+    await this.planLimitsService.enforceChatLimit(userId);
 
-    try {
-      // Enforce chat limits before creating session
-      await this.planLimitsService.enforceChatLimit(userId);
-
-      const session = await this.prisma.chatSession.create({
-        data: {
-          userId,
-          title: options?.title || "New Chat",
-          temperature: options?.temperature ?? 0.7,
-          maxTokens: options?.maxTokens ?? 4096,
-          model: options?.model || this.configService.getDefaultModel("gemini"),
-        },
-        include: {
-          messages: true,
-        },
+    // Try to fetch existing session if sessionId is provided
+    if (sessionId) {
+      const existingSession = await this.prisma.chatSession.findFirst({
+        where: { id: sessionId, userId, isActive: true },
+        include: { messages: true },
       });
 
-      this.logger.log(`Chat session created successfully`, {
-        sessionId: session.id,
-        userId,
-      });
-
-      return {
-        success: true,
-        message: "Chat session created successfully",
-        data: this.mapToChatSessionWithMessagesDto(session),
-      };
-    } catch (error) {
-      this.logger.error(`Failed to create chat session for user ${userId}`, {
-        error: error.message,
-        options,
-      });
-      throw error;
+      if (existingSession) return existingSession;
     }
+
+    // No session found or sessionId not provided -> create a new one
+    const newSession = await this.prisma.chatSession.create({
+      data: {
+        userId,
+        temperature: options?.temperature ?? 0.7, // default
+        maxTokens: options?.maxTokens ?? 512, // default
+        title: options?.title?.trim() || prompt.slice(0, 50),
+      },
+      include: { messages: true }, // include messages immediately
+    });
+
+    return newSession;
   }
 
   async getChatSessions(userId: string): Promise<GetChatSessionsResponseDto> {
@@ -133,7 +132,7 @@ export class ChatService implements IChatService {
         include: {
           messages: {
             orderBy: {
-              createdAt: "asc",
+              createdAt: 'asc',
             },
           },
           _count: {
@@ -143,24 +142,24 @@ export class ChatService implements IChatService {
           },
         },
         orderBy: {
-          updatedAt: "desc",
+          createdAt: 'desc',
         },
       });
 
       this.logger.log(
-        `Retrieved ${sessions.length} chat sessions for user ${userId}`
+        `Retrieved ${sessions.length} chat sessions for user ${userId}`,
       );
 
       return {
         success: true,
-        message: "Chat sessions retrieved successfully",
+        message: 'Chat sessions retrieved successfully',
         data: sessions.map((session) =>
-          this.mapToChatSessionWithCountDto(session)
+          this.mapToChatSessionWithCountDto(session),
         ),
       };
     } catch (error) {
       this.logger.error(`Failed to fetch chat sessions for user ${userId}`, {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -168,7 +167,7 @@ export class ChatService implements IChatService {
 
   async getChatSession(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<GetChatSessionResponseDto> {
     this.logger.log(`Fetching chat session ${sessionId} for user ${userId}`);
 
@@ -182,7 +181,7 @@ export class ChatService implements IChatService {
         include: {
           messages: {
             orderBy: {
-              createdAt: "asc",
+              createdAt: 'asc',
             },
           },
         },
@@ -190,71 +189,63 @@ export class ChatService implements IChatService {
 
       if (!session) {
         this.logger.warn(
-          `Chat session ${sessionId} not found for user ${userId}`
+          `Chat session ${sessionId} not found for user ${userId}`,
         );
-        throw new NotFoundException("Chat session not found");
+        throw new NotFoundException('Chat session not found');
       }
 
       this.logger.log(
-        `Chat session ${sessionId} retrieved successfully for user ${userId}`
+        `Chat session ${sessionId} retrieved successfully for user ${userId}`,
       );
 
       return {
         success: true,
-        message: "Chat session retrieved successfully",
+        message: 'Chat session retrieved successfully',
         data: this.mapToChatSessionWithMessagesDto(session),
       };
     } catch (error) {
       this.logger.error(
         `Failed to fetch chat session ${sessionId} for user ${userId}`,
-        { error: error.message }
+        { error: error instanceof Error ? error.message : String(error) },
       );
       throw error;
     }
   }
 
   async chatWithSession(
-    sessionId: string,
     userId: string,
     prompt: string,
-    options?: { temperature?: number; maxTokens?: number }
+    sessionId?: string,
+    options?: CreateChatSessionDto,
   ): Promise<ChatWithSessionResponseDto> {
-    this.logger.log(
-      `Processing chat message in session ${sessionId} for user ${userId}`,
-      { promptLength: prompt.length, options }
-    );
-
     try {
-      // Enforce chat limits before sending message
-      await this.planLimitsService.enforceChatLimit(userId);
-
-      // Get session and validate ownership
-      const session = await this.prisma.chatSession.findFirst({
-        where: { id: sessionId, userId, isActive: true },
-        include: { messages: true },
-      });
-
-      if (!session) {
-        throw new NotFoundException("Chat session not found");
-      }
-
+      const session = await this.getOrCreateChatSession(
+        userId,
+        prompt,
+        sessionId,
+        options,
+      );
       // Validate input
       if (!prompt.trim()) {
-        throw new BadRequestException("Message cannot be empty");
+        throw new BadRequestException('Message cannot be empty');
+      }
+
+      if (!session) {
+        throw new Error('Failed to create or retrieve session');
       }
 
       // Create user message
       const userMessage = await this.prisma.chatMessage.create({
         data: {
-          sessionId,
-          role: "USER",
+          sessionId: session.id,
+          role: 'USER',
           content: prompt.trim(),
         },
       });
 
       // Prepare conversation history for AI
-      const providerHistory = session.messages.map((msg) => ({
-        role: msg.role === "USER" ? ("user" as const) : ("model" as const),
+      const providerHistory = (session.messages || []).map((msg) => ({
+        role: msg.role === 'USER' ? ('user' as const) : ('model' as const),
         parts: [{ text: msg.content }],
       }));
 
@@ -262,35 +253,29 @@ export class ChatService implements IChatService {
       const aiResponse = await this.chatProvider.sendMessage(
         providerHistory,
         prompt,
-        session.model
+        session.model,
       );
 
       // Create AI message
       const aiMessage = await this.prisma.chatMessage.create({
         data: {
-          sessionId,
-          role: "ASSISTANT",
+          sessionId: session.id,
+          role: 'ASSISTANT',
           content: aiResponse.text,
         },
       });
 
-      // Update session timestamp
-      await this.prisma.chatSession.update({
-        where: { id: sessionId },
-        data: { updatedAt: new Date() },
-      });
-
       this.logger.log(
-        `Chat message processed successfully in session ${sessionId}`,
+        `Chat message processed successfully in session ${session.id}`,
         {
           userId,
           responseLength: aiResponse.text.length,
-        }
+        },
       );
 
       return {
         success: true,
-        message: "Message sent successfully",
+        message: 'Message sent successfully',
         data: {
           userMessage: this.mapToChatMessageDto(userMessage),
           aiMessage: this.mapToChatMessageDto(aiMessage),
@@ -302,17 +287,18 @@ export class ChatService implements IChatService {
       this.logger.error(
         `Failed to process chat message in session ${sessionId} for user ${userId}`,
         {
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           promptLength: prompt.length,
-        }
+        },
       );
+
       throw error;
     }
   }
 
   async deleteChatSession(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<DeleteChatSessionResponseDto> {
     this.logger.log(`Deleting chat session ${sessionId} for user ${userId}`);
 
@@ -322,7 +308,7 @@ export class ChatService implements IChatService {
       });
 
       if (!session) {
-        throw new NotFoundException("Chat session not found");
+        throw new NotFoundException('Chat session not found');
       }
 
       await this.prisma.chatSession.update({
@@ -331,18 +317,18 @@ export class ChatService implements IChatService {
       });
 
       this.logger.log(
-        `Chat session ${sessionId} deleted successfully for user ${userId}`
+        `Chat session ${sessionId} deleted successfully for user ${userId}`,
       );
 
       return {
         success: true,
-        message: "Chat session deleted successfully",
+        message: 'Chat session deleted successfully',
         data: null,
       };
     } catch (error) {
       this.logger.error(
         `Failed to delete chat session ${sessionId} for user ${userId}`,
-        { error: error.message }
+        { error: error instanceof Error ? error.message : String(error) },
       );
       throw error;
     }
@@ -351,25 +337,25 @@ export class ChatService implements IChatService {
   async updateChatSession(
     sessionId: string,
     userId: string,
-    data: UpdateChatSessionDto
+    data: UpdateChatSessionDto,
   ): Promise<UpdateChatSessionResponseDto> {
     this.logger.log(`Updating chat session ${sessionId} for user ${userId}`, {
       updateData: data,
     });
 
     try {
-      const session = await this.prisma.chatSession.findFirst({
+      const session = await this.prisma.chatSession.findUnique({
         where: { id: sessionId, userId, isActive: true },
       });
 
       if (!session) {
-        throw new NotFoundException("Chat session not found");
+        throw new NotFoundException('Chat session not found');
       }
 
       // Validate model if provided
       if (
         data.model &&
-        !this.configService.validateModel("gemini", data.model)
+        !this.configService.validateModel('gemini', data.model)
       ) {
         throw new BadRequestException(`Unsupported model: ${data.model}`);
       }
@@ -377,32 +363,31 @@ export class ChatService implements IChatService {
       const updatedSession = await this.prisma.chatSession.update({
         where: { id: sessionId },
         data: {
-          ...(data.title !== undefined && { title: data.title }),
-          ...(data.temperature !== undefined && {
+          ...(data.title && { title: data.title }),
+          ...(data.temperature && {
             temperature: data.temperature,
           }),
-          ...(data.maxTokens !== undefined && { maxTokens: data.maxTokens }),
-          ...(data.model !== undefined && { model: data.model }),
-          updatedAt: new Date(),
+          ...(data.maxTokens && { maxTokens: data.maxTokens }),
+          ...(data.model && { model: data.model }),
         },
       });
 
       this.logger.log(
-        `Chat session ${sessionId} updated successfully for user ${userId}`
+        `Chat session ${sessionId} updated successfully for user ${userId}`,
       );
 
       return {
         success: true,
-        message: "Chat session updated successfully",
+        message: 'Chat session updated successfully',
         data: this.mapToChatSessionDto(updatedSession),
       };
     } catch (error) {
       this.logger.error(
         `Failed to update chat session ${sessionId} for user ${userId}`,
         {
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           updateData: data,
-        }
+        },
       );
       throw error;
     }

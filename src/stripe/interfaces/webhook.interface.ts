@@ -10,5 +10,9 @@ export interface IWebhookEventProcessor {
 }
 
 export interface IStripeWebhookProcessor {
-  constructEvent(payload: Buffer | string, signature: string, secret: string): any;
+  constructEvent(
+    payload: Buffer | string,
+    signature: string,
+    secret: string,
+  ): any;
 }

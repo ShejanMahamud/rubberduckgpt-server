@@ -13,24 +13,29 @@ export class GroqAiProvider extends BaseAiProvider implements IAiProvider {
     super({ maxRetries: 3, retryDelay: 1000, timeout: 30000 });
   }
 
-  async generateQuestions(text: string): Promise<Array<{
-    text: string;
-    category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL';
-    order: number;
-  }>> {
+  async generateQuestions(text: string): Promise<
+    Array<{
+      text: string;
+      category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL';
+      order: number;
+    }>
+  > {
     const operationName = 'generateQuestions';
     const context = { textLength: text.length, provider: 'groq' };
-    
+
     this.logOperation(operationName, context);
-    
+
     try {
       const result = await this.withRetry(
         () => this.generateQuestionsInternal(text),
         operationName,
-        context
+        context,
       );
-      
-      this.logSuccess(operationName, { ...context, questionCount: result.length });
+
+      this.logSuccess(operationName, {
+        ...context,
+        questionCount: result.length,
+      });
       return result;
     } catch (error) {
       this.logError(operationName, error as Error, context);
@@ -38,27 +43,31 @@ export class GroqAiProvider extends BaseAiProvider implements IAiProvider {
     }
   }
 
-  async gradeAnswer(question: string, answer: string, maxScore: number): Promise<{
+  async gradeAnswer(
+    question: string,
+    answer: string,
+    maxScore: number,
+  ): Promise<{
     score: number;
     feedback: string;
   }> {
     const operationName = 'gradeAnswer';
-    const context = { 
-      questionLength: question.length, 
-      answerLength: answer.length, 
+    const context = {
+      questionLength: question.length,
+      answerLength: answer.length,
       maxScore,
-      provider: 'groq' 
+      provider: 'groq',
     };
-    
+
     this.logOperation(operationName, context);
-    
+
     try {
       const result = await this.withRetry(
         () => this.gradeAnswerInternal(question, answer, maxScore),
         operationName,
-        context
+        context,
       );
-      
+
       this.logSuccess(operationName, { ...context, score: result.score });
       return result;
     } catch (error) {
@@ -69,22 +78,25 @@ export class GroqAiProvider extends BaseAiProvider implements IAiProvider {
 
   async transcribeAudio(audio: Express.Multer.File): Promise<string> {
     const operationName = 'transcribeAudio';
-    const context = { 
-      fileSize: audio.size, 
+    const context = {
+      fileSize: audio.size,
       mimeType: audio.mimetype,
-      provider: 'groq' 
+      provider: 'groq',
     };
-    
+
     this.logOperation(operationName, context);
-    
+
     try {
       const result = await this.withRetry(
         () => this.transcribeAudioInternal(audio),
         operationName,
-        context
+        context,
       );
-      
-      this.logSuccess(operationName, { ...context, transcriptionLength: result.length });
+
+      this.logSuccess(operationName, {
+        ...context,
+        transcriptionLength: result.length,
+      });
       return result;
     } catch (error) {
       this.logError(operationName, error as Error, context);
@@ -92,24 +104,27 @@ export class GroqAiProvider extends BaseAiProvider implements IAiProvider {
     }
   }
 
-  private async generateQuestionsInternal(text: string): Promise<Array<{
-    text: string;
-    category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL';
-    order: number;
-  }>> {
+  private async generateQuestionsInternal(text: string): Promise<
+    Array<{
+      text: string;
+      category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL';
+      order: number;
+    }>
+  > {
     const model = this.configService.getDefaultModel('groq');
-    
+
     const response = await this.groq.chat.completions.create({
       model,
       messages: [
         {
-          role: "system",
-          content: "You are an AI interviewer. Based on the provided resume text, generate 15 interview questions: 5 technical, 5 projects, 5 behavioral. Return a JSON object with keys technical, projects, behavioral. Keep each question concise (max 200 characters)."
+          role: 'system',
+          content:
+            'You are an AI interviewer. Based on the provided resume text, generate 15 interview questions: 5 technical, 5 projects, 5 behavioral. Return a JSON object with keys technical, projects, behavioral. Keep each question concise (max 200 characters).',
         },
         {
-          role: "user",
-          content: text
-        }
+          role: 'user',
+          content: text,
+        },
       ],
       response_format: {
         type: 'json_schema',
@@ -127,35 +142,48 @@ export class GroqAiProvider extends BaseAiProvider implements IAiProvider {
         },
       },
     });
-    
+
     const parsed = JSON.parse(response.choices[0].message.content || '{}');
-    const toCreate: Array<{ text: string; category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL'; order: number }> = [];
-    
-    const pushList = (arr: string[] | undefined, cat: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL') => {
+    const toCreate: Array<{
+      text: string;
+      category: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL';
+      order: number;
+    }> = [];
+
+    const pushList = (
+      arr: string[] | undefined,
+      cat: 'TECHNICAL' | 'PROJECTS' | 'BEHAVIORAL',
+    ) => {
       if (!Array.isArray(arr)) return;
       arr.forEach((q) => {
         const nextOrder = toCreate.length;
         toCreate.push({ text: q, category: cat, order: nextOrder });
       });
     };
-    
+
     pushList(parsed.technical, 'TECHNICAL');
     pushList(parsed.projects, 'PROJECTS');
     pushList(parsed.behavioral, 'BEHAVIORAL');
 
     if (toCreate.length === 0) {
-      throw new Error('Failed to generate questions - no questions were created');
+      throw new Error(
+        'Failed to generate questions - no questions were created',
+      );
     }
-    
+
     return toCreate;
   }
 
-  private async gradeAnswerInternal(question: string, answer: string, maxScore: number): Promise<{
+  private async gradeAnswerInternal(
+    question: string,
+    answer: string,
+    maxScore: number,
+  ): Promise<{
     score: number;
     feedback: string;
   }> {
     const model = this.configService.getDefaultModel('groq');
-    
+
     const gradingPrompt = `You are an expert interviewer. Grade the candidate's answer on a scale of 0 to ${maxScore}.
 Question: ${question}
 Answer: ${answer}
@@ -164,14 +192,17 @@ Return strict JSON with keys: score (number), feedback (string).`;
     const grade = await this.groq.chat.completions.create({
       model,
       messages: [
-        { role: 'system', content: 'You are a strict grader returning only JSON.' },
+        {
+          role: 'system',
+          content: 'You are a strict grader returning only JSON.',
+        },
         { role: 'user', content: gradingPrompt },
       ],
     });
 
     let feedback = 'Auto-grading failed.';
     let score = 0;
-    
+
     try {
       const parsed = JSON.parse(grade.choices[0].message.content || '{}');
       feedback = parsed.feedback ?? feedback;
@@ -183,9 +214,11 @@ Return strict JSON with keys: score (number), feedback (string).`;
     return { score, feedback };
   }
 
-  private async transcribeAudioInternal(audio: Express.Multer.File): Promise<string> {
+  private async transcribeAudioInternal(
+    audio: Express.Multer.File,
+  ): Promise<string> {
     const model = this.configService.getDefaultModel('groq');
-    
+
     const response = await this.groq.audio.transcriptions.create({
       file: audio.buffer as any,
       model: 'whisper-large-v3',

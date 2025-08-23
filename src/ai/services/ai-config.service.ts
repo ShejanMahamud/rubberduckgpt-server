@@ -79,7 +79,10 @@ export class AiConfigService {
     return this.config.groq;
   }
 
-  getModelConfig(provider: 'gemini' | 'groq', modelName: string): AiModelConfig | null {
+  getModelConfig(
+    provider: 'gemini' | 'groq',
+    modelName: string,
+  ): AiModelConfig | null {
     return this.config[provider].models[modelName] || null;
   }
 
